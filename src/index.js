@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import joi from 'joi';
 import bcrypt from 'bcrypt';
 import { v4 as uuid } from 'uuid';
+import dayjs from 'dayjs';
 
 dotenv.config();
 
@@ -38,19 +39,21 @@ server.post('/login', async (request, response) => {
         
         const user = await db.collection('users').findOne({ email });
         if (!user) return response.status(401).send('Email ou senha inválidos!');
-
+        
         const isValidPw = bcrypt.compareSync(password, user.encryptedPw);
         if (!isValidPw) return response.status(401).send('Email ou senha inválidos!');
         
         const token = uuid();
-
-        await db.collection('sessions').insertOne({
+        
+        const session = {
             _id: user._id,
+            userName: user.name,
             token
-        });
+        };
         
-        response.status(202).send('Login efetuado com sucesso!');
+        await db.collection('sessions').insertOne(session);
         
+        response.status(202).send(session);
         client.close();
 
     } catch (error) {
@@ -101,40 +104,76 @@ server.post( '/registration', async (request, response) => {
 
 server.post('/cash-flow', async (request, response) => {
 
-    const { value, description } = request.body;
-
     const cashFlowSchema = joi.object({
         value: joi.string().required(),
-        description: joi.string().required()
+        description: joi.string().required(),
+        type: joi.string().valid('cash-in', 'cash-out').required()
     });
 
     const { error } = cashFlowSchema.validate( request.body );
-    if (error) return response.status(406).send(error.description.message)
+    if (error) return response.status(406).send(error.details[0].message)
 
-    const authorization = request.header('Authorization');
+    const { authorization } = request.headers;
     const token = authorization?.replace('Bearer ', '');
     if(!token) return response.status(401).send('Usuário não autorizado!');
 
     try {
 
         await startConectionToDB();
-
+        
         const session = await db.collection("sessions").findOne({ token });
-        console.log(session)
         if (!session) return response.status(404).send('Usuário não encontrado!');
-
-        db.collection('cash-flow').insertOne({ _id: session._id , value, description });
-
+        
+        await db.collection('cash_flow').insertOne({
+            ...request.body,
+            userId: session._id, 
+            date: dayjs().format('DD/MM') 
+        });
+        
         response.status(201).send('Registro criado com sucesso!');
+        
         client.close();
-
+        
     } catch (error) {
-        response.status(500).send('Erro do servidor!');
+        response.status(500).send(error);
         client.close();
-    }
+    }; 
 });
 
+server.get('/cash-flow', async (request, response) => {
 
-server.listen(process.env.PORT)
+    const { authorization } = request.headers;
+    const token = authorization?.replace('Bearer ', '');
+    if(!token) return response.status(401).send('Usuário não autorizado!');
+    
+    try {
+        
+        await startConectionToDB();
+        
+        const session = await db.collection("sessions").findOne({ token });
+        if (!session) return response.status(404).send('Usuário não encontrado!');
+        
+        let cashFlow = await db.collection('cash_flow').find({ userId: session._id }).toArray();
+        cashFlow.sort( (b, a) => {
+            if (a.date > b.date) {
+              return 1;
+            }
+            if (a.date < b.date) {
+              return -1;
+            }
+            return 0;
+        });
+
+        response.send(cashFlow)
+        client.close()
+
+    } catch (error) {
+        response.status(500).send('Erro do servidor!')
+        client.close();
+    }
+    
+})
+
+server.listen(process.env.PORT);
 
 
