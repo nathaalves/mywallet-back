@@ -153,7 +153,7 @@ server.get('/cash-flow', async (request, response) => {
         const session = await db.collection("sessions").findOne({ token });
         if (!session) return response.status(404).send('Usuário não encontrado!');
         
-        let cashFlow = await db.collection('cash_flow').find({ userId: session._id }).toArray();
+        let cashFlow = await db.collection('cash_flow').find({ userId: session.userId }).toArray();
         cashFlow.sort( (b, a) => {
             if (a.date > b.date) {
               return 1;
