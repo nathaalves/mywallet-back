@@ -126,7 +126,7 @@ server.post('/cash-flow', async (request, response) => {
         
         await db.collection('cash_flow').insertOne({
             ...request.body,
-            userId: session._id, 
+            userId: session.userId, 
             date: dayjs().format('YYYY/MM/DD HH:mm:ss') 
         });
         
