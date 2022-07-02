@@ -13,12 +13,12 @@ const server = express();
 server.use(cors());
 server.use(express.json());
 
-const client = new MongoClient(process.env.URL_CONNECT_MONGO);
+const client = new MongoClient(process.env.URI_CONNECT_MONGO);
 let db = null;
 
 async function startConectionToDB () {
     await client.connect();
-    db = client.db('my-wallet');
+    db = client.db(process.env.MONGO_DB_NAME);
 };
 
 server.post('/login', async (request, response) => {
@@ -38,7 +38,7 @@ server.post('/login', async (request, response) => {
         await startConectionToDB();
         
         const user = await db.collection('users').findOne({ email });
-        if (!user) return response.status(401).send('Email ou senha inválidos!');
+        if (!user) return response.status(401).send('Usuário não cadastrado!');
         
         const isValidPw = bcrypt.compareSync(password, user.encryptedPw);
         if (!isValidPw) return response.status(401).send('Email ou senha inválidos!');
@@ -127,7 +127,7 @@ server.post('/cash-flow', async (request, response) => {
         await db.collection('cash_flow').insertOne({
             ...request.body,
             userId: session._id, 
-            date: dayjs().format('DD/MM') 
+            date: dayjs().format('YYYY/MM/DD HH:mm:ss') 
         });
         
         response.status(201).send('Registro criado com sucesso!');
@@ -170,9 +170,54 @@ server.get('/cash-flow', async (request, response) => {
     } catch (error) {
         response.status(500).send('Erro do servidor!')
         client.close();
-    }
-    
-})
+    };
+});
+
+server.post('/session', async (request, response) => {
+
+    const { authorization } = request.headers;
+    const token = authorization?.replace('Bearer ', '');
+    if(!token) return response.status(401).send('Usuário não autorizado!');
+
+    try {
+
+        await startConectionToDB();
+        
+        const session = await db.collection("sessions").findOne({ token });
+        if (!session) return response.status(404).send('Usuário não encontrado!');
+        
+        response.sendStatus(200);
+        client.close();
+
+    } catch (error) {
+        response.status(500).send('Erro do servidor!')
+        client.close();
+    };
+});
+
+server.delete('/session', async (request, response) => {
+
+    const { authorization } = request.headers;
+    const token = authorization?.replace('Bearer ', '');
+    if(!token) return response.status(401).send('Usuário não autorizado!');
+
+    try {
+
+        await startConectionToDB();
+        
+        const session = await db.collection("sessions").findOne({ token });
+        if (!session) return response.status(404).send('Usuário não encontrado!');
+
+        await db.collection("sessions").deleteOne({ token });
+        
+        response.sendStatus(200);
+        client.close();
+
+    } catch (error) {
+        response.status(500).send('Erro do servidor!')
+        client.close();
+    };
+});
 
 server.listen(process.env.PORT);
 
