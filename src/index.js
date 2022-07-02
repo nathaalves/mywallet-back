@@ -46,7 +46,7 @@ server.post('/login', async (request, response) => {
         const token = uuid();
         
         const session = {
-            _id: user._id,
+            userId: user._id,
             userName: user.name,
             token
         };
