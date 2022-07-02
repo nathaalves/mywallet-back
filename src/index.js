@@ -219,7 +219,7 @@ server.delete('/session', async (request, response) => {
     };
 });
 
-server.delete('/cash-flow/:id', async (request, response) => {
+/* server.delete('/cash-flow/:id', async (request, response) => {
 
     const { authorization } = request.headers;
     const token = authorization?.replace('Bearer ', '');
@@ -243,7 +243,7 @@ server.delete('/cash-flow/:id', async (request, response) => {
         response.status(500).send('Erro do servidor!')
         client.close();
     };
-});
+}); */
 
 server.listen(process.env.PORT);
 
