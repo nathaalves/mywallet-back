@@ -1,8 +1,8 @@
 import express from 'express';
 import cors from 'cors';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import dotenv from 'dotenv';
-import joi, { object } from 'joi';
+import joi from 'joi';
 import bcrypt from 'bcrypt';
 import { v4 as uuid } from 'uuid';
 import dayjs from 'dayjs';
@@ -219,22 +219,25 @@ server.delete('/session', async (request, response) => {
     };
 });
 
-/* server.delete('/cash-flow/:id', async (request, response) => {
+server.delete('/cash-flow/:id', async (request, response) => {
 
     const { authorization } = request.headers;
     const token = authorization?.replace('Bearer ', '');
     if(!token) return response.status(401).send('Usuário não autorizado!');
 
     const { id } = request.params;
-
+    
     try {
-
+        
         await startConectionToDB();
         
         const session = await db.collection("sessions").findOne({ token });
         if (!session) return response.status(404).send('Usuário não encontrado!');
-
-        await db.collection("cash_flow").deleteOne({ _id: Object(id) });
+        
+        const cashFlow = await db.collection('cash_flow').findOne({ _id: ObjectId(id) });
+        if (!cashFlow) return response.status(404).send('Registro não encontrado');
+        
+        await db.collection("cash_flow").deleteOne({ _id: ObjectId(id) });
         
         response.sendStatus(200);
         client.close();
@@ -243,8 +246,6 @@ server.delete('/session', async (request, response) => {
         response.status(500).send('Erro do servidor!')
         client.close();
     };
-}); */
+});
 
 server.listen(process.env.PORT);
-
-
